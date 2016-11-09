@@ -116,7 +116,7 @@ int main(int argc, char *argv[]){
 
 
 void nom_nom_q(QTYPE *queue){
-  std::chrono::milliseconds nom_nom_speed(2000);
+  std::chrono::milliseconds nom_nom_speed(500);
   Byte data;
   Byte* r;
 
@@ -155,27 +155,25 @@ Byte* rcvchar(int sockfd, QTYPE *queue){
 
   n = recvfrom(sockfd, buffer, 1, 0, (struct sockaddr *)&cli_addr, &clilen);
   if (n < 0) error("ERROR reading from socket");
-  if( *buffer != Endfile ){
-    (queue->rear) = (((queue->rear) + 1) % RXQSIZE + 1) -1;
-    queue->count ++;
+  (queue->rear) = (((queue->rear) + 1) % RXQSIZE + 1) -1;
+  queue->count ++;
 
-    // check XOFF condition
-    if( queue->count > MIN_UPPERLIMIT && !send_xoff){
-      std::cout << "Buffer > MIN_UPPERLIMIT.\n";
-      sent_xonxoff = XOFF;
+  // check XOFF condition
+  if( queue->count > MIN_UPPERLIMIT && !send_xoff){
+    std::cout << "Buffer > MIN_UPPERLIMIT.\n";
+    sent_xonxoff = XOFF;
 
-      n = sendto(sockfd, &sent_xonxoff, sizeof(sent_xonxoff), 0, (struct sockaddr *)&cli_addr, clilen);
+    n = sendto(sockfd, &sent_xonxoff, sizeof(sent_xonxoff), 0, (struct sockaddr *)&cli_addr, clilen);
 
-      if (n > 0){
-          std::cout << "Mengirim XOFF\n";
-          send_xoff = true;
-          send_xon = false;
-      }
-      else{
-          std::cout << "P\n";
-      }
-
+    if (n > 0){
+        std::cout << "Mengirim XOFF\n";
+        send_xoff = true;
+        send_xon = false;
     }
+    else{
+        std::cout << "P\n";
+    }
+
   }
 
   return buffer;
@@ -197,13 +195,23 @@ Byte *q_get(QTYPE *queue, Byte* data)
 	*/
 
     //Retrieve data from buffer, save it to "current" and "data"
-	current = &queue->data[queue->front];
+    do {
+      current = &queue->data[queue->front];
+
+      //update queue after save data to current, count --
+    	(queue->front) = (((queue->front) + 1) % RXQSIZE + 1) -1;
+    	(queue->count)--;
+      if( *current <= 32 || *current == CR || *current == LF || *current == Endfile ){
+        if( queue->count == 0 )
+          return NULL;
+        else
+          continue;
+      }
+      break;
+    } while( true );
 
   *data = *current;
 
-	//update queue after save data to current, count --
-	(queue->front) = (((queue->front) + 1) % RXQSIZE + 1) -1;
-	(queue->count)--;
 
 	//If the number of characters in the receive buffer is below certain level, then send XON.
   if ((queue->count < MAX_LOWERLIMIT) && (!send_xon)){
