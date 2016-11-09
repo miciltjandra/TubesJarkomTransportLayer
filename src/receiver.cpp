@@ -155,26 +155,27 @@ Byte* rcvchar(int sockfd, QTYPE *queue){
 
   n = recvfrom(sockfd, buffer, 1, 0, (struct sockaddr *)&cli_addr, &clilen);
   if (n < 0) error("ERROR reading from socket");
+  if( *buffer != Endfile ){
+    (queue->rear) = (((queue->rear) + 1) % RXQSIZE + 1) -1;
+    queue->count ++;
 
-  (queue->rear) = (((queue->rear) + 1) % RXQSIZE + 1) -1;
-  queue->count ++;
+    // check XOFF condition
+    if( queue->count > MIN_UPPERLIMIT && !send_xoff){
+      std::cout << "Buffer > MIN_UPPERLIMIT.\n";
+      sent_xonxoff = XOFF;
 
-  // check XOFF condition
-  if( queue->count > MIN_UPPERLIMIT && !send_xoff){
-    std::cout << "Buffer > MIN_UPPERLIMIT.\n";
-    sent_xonxoff = XOFF;
+      n = sendto(sockfd, &sent_xonxoff, sizeof(sent_xonxoff), 0, (struct sockaddr *)&cli_addr, clilen);
 
-    n = sendto(sockfd, &sent_xonxoff, sizeof(sent_xonxoff), 0, (struct sockaddr *)&cli_addr, clilen);
+      if (n > 0){
+          std::cout << "Mengirim XOFF\n";
+          send_xoff = true;
+          send_xon = false;
+      }
+      else{
+          std::cout << "P\n";
+      }
 
-    if (n > 0){
-        std::cout << "Mengirim XOFF\n";
-        send_xoff = true;
-        send_xon = false;
     }
-    else{
-        std::cout << "P\n";
-    }
-
   }
 
   return buffer;
