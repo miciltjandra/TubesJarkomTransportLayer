@@ -62,7 +62,7 @@ int main(int argc, char *argv[]){
            error("ERROR on binding");
 
   /* Initialize XON/XOFF flags */
-  send_xon = false;
+  send_xon = true;
   send_xoff = false;
 
   /* Create child process */
@@ -92,7 +92,9 @@ void nom_nom_q(QTYPE *queue){
     /* Call q_get */
     Byte* r = q_get(queue, &data);
     if(r)
-      std::cout << "Nom Nom " << *r << "\n";
+      std::cout << "NomNomEngine: Nom Nom " << *r << "\n";
+    else
+      std::cout << "NomNomEngine: Nothing to Nom Nom\n";
 
     /* Can introduce some delay here. */
     std::this_thread::sleep_for(nom_nom_speed);
