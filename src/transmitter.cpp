@@ -10,10 +10,7 @@
 #include <pthread.h>
 #include <fstream>
 
-#define XON (0x11)
-#define XOFF (0x13)
-#define MAXBUF 256
-
+#include "dcomm.h"
 
 //Global Variables
 
@@ -94,9 +91,12 @@ int main(int argc, char* argv[]) {
 		count++;
 		n = sendto(socket_fd,buf,
 	    strlen(buf),0,(const struct sockaddr *)&server_address,length);
-	    //sleep(1);
+	    usleep(200);
 	}
-
+	buf[0] = Endfile;
+	printf("Mengirim byte ke-%d: Endfile\n", count);
+	n = sendto(socket_fd,buf,
+	    strlen(buf),0,(const struct sockaddr *)&server_address,length);
 
 	//sleep(10000);
 	return 0;
@@ -106,8 +106,8 @@ void *get_signal(void* thread_id) {
 	struct sockaddr_in from;
 	unsigned int length = sizeof(from);
 	while (true) {
-    	char buffer[MAXBUF];
-		int n = recvfrom(socket_fd, buffer, MAXBUF, 0, (struct sockaddr *)&from, &length);
+    	char buffer[MAXLEN];
+		int n = recvfrom(socket_fd, buffer, MAXLEN, 0, (struct sockaddr *)&from, &length);
 		if (n < 0) {
 			fprintf(stderr, "Error receiving"); 
 		}
