@@ -132,12 +132,12 @@ Byte* rcvchar(int sockfd, QTYPE *queue){
     n = sendto(sockfd, &sent_xonxoff, sizeof(sent_xonxoff), 0, (struct sockaddr *)&cli_addr, clilen);
 
     if (n > 0){
-        std::cout << "XON SIGNAL SENT\n";
+        std::cout << "XOFF SIGNAL SENT\n";
         send_xoff = true;
         send_xon = false;
     }
     else{
-        std::cout << "XON SIGNAL NOT SENT\n";
+        std::cout << "XOFF SIGNAL NOT SENT\n";
     }
 
   }
@@ -172,14 +172,14 @@ Byte *q_get(QTYPE *queue, Byte* data)
 	//If the number of characters in the receive buffer is below certain level, then send XON.
   if ((queue->count < MIN_UPPERLIMIT) && (!send_xon)){
       std::cout << "Buffer is below MINUPPER, sending XON\n";
-      send_xon = true; //xon flag true
-      send_xoff = false; //xoff flag false
       sent_xonxoff = XON;
 
       int a = sendto(sockfd, &sent_xonxoff, sizeof(sent_xonxoff), 0, (struct sockaddr *)&cli_addr, clilen);
 
       if (a > 0){
           std::cout << "XON SIGNAL SENT\n";
+          send_xon = true; //xon flag true
+          send_xoff = false; //xoff flag false
       }
       else{
           std::cout << "XON SIGNAL NOT SENT\n";
