@@ -9,6 +9,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <string>
+#include <arpa/inet.h>
+#include <ifaddrs.h>
 
 #define DELAY 500
 #define RXQSIZE 8
@@ -21,6 +23,7 @@ QTYPE *rxq = &rcvq;
 Byte sent_xonxoff = XON;
 Boolean send_xon = false;
 Boolean send_xoff = false;
+Boolean transmission_finished = false;
 
 //Socket
 int sockfd, newsockfd, portno;
@@ -35,11 +38,34 @@ Byte *rcvchar(int sockfd, QTYPE *queue);
 void nom_nom_q(QTYPE *queue);
 void error(const std::string& msg);
 
+in_addr get_ip(const std::string& interface_name){
+  struct ifaddrs *ifap, *ifa;
+  struct sockaddr_in *sa;
+  char *addr;
+
+  getifaddrs (&ifap);
+  for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+      if (ifa->ifa_addr->sa_family==AF_INET) {
+          sa = (struct sockaddr_in *) ifa->ifa_addr;
+
+          if( interface_name == std::string(ifa->ifa_name) )
+            return sa->sin_addr;
+
+//          addr = inet_ntoa(sa->sin_addr);
+//          printf("Interface: %s\tAddress: %s\n", ifa->ifa_name, addr);
+      }
+  }
+
+  freeifaddrs(ifap);
+}
+
 
 
 int main(int argc, char *argv[]){
   Byte c;
 
+  in_addr addr; // INADDR_ANY
+  addr = get_ip("enp1s0");
 
   /* Insert code here to bind socket to the port number given in argv[1]. */
   if (argc < 2) {
@@ -54,12 +80,13 @@ int main(int argc, char *argv[]){
   portno = atoi(argv[1]);
 
   serv_addr.sin_family = AF_INET;
-  serv_addr.sin_addr.s_addr = INADDR_ANY;
+  serv_addr.sin_addr = addr;
   serv_addr.sin_port = htons(portno);
 
   if (bind(sockfd, (struct sockaddr *) &serv_addr,
            sizeof(serv_addr)) < 0)
            error("ERROR on binding");
+  std::cout << "Binding pada "<< inet_ntoa(serv_addr.sin_addr) << ":" << portno << std::endl;
 
   /* Initialize XON/XOFF flags */
   send_xon = true;
@@ -69,11 +96,15 @@ int main(int argc, char *argv[]){
 
   std::thread nom_nom_engine(nom_nom_q, rxq);
 
+  int byte_counter = 1;
   while(1){
     c = *(rcvchar(sockfd,rxq));
-    std::cout << "Receive : " << (int) c << " " << c << std::endl;
+//    std::cout << "Receive : " << (int) c << " " << c << std::endl;
+    std::cout << "Menerima byte ke-" << byte_counter++ << ".\n";
 
     if( c == Endfile ){
+      transmission_finished = true;
+      std::cout << "Transmission Selesai\n";
       nom_nom_engine.join();
       exit(0);
     }
@@ -87,18 +118,20 @@ int main(int argc, char *argv[]){
 void nom_nom_q(QTYPE *queue){
   std::chrono::milliseconds nom_nom_speed(2000);
   Byte data;
+  Byte* r;
 
-  while(1){
+  int byte_counter = 1;
+  do {
     /* Call q_get */
-    Byte* r = q_get(queue, &data);
+    r = q_get(queue, &data);
     if(r)
-      std::cout << "NomNomEngine: Nom Nom " << *r << "\n";
-    else
-      std::cout << "NomNomEngine: Nothing to Nom Nom\n";
+      std::cout << "Mengkonsumsi byte ke-" << byte_counter++ << ": '" << *r << "'\n";
+//    else
+//      std::cout << "NomNomEngine: Nothing to Nom Nom\n";
 
     /* Can introduce some delay here. */
     std::this_thread::sleep_for(nom_nom_speed);
-  }
+  } while(!transmission_finished || r);
 }
 
 
@@ -127,19 +160,19 @@ Byte* rcvchar(int sockfd, QTYPE *queue){
   queue->count ++;
 
   // check XOFF condition
-  if( queue->count > MAX_LOWERLIMIT && !send_xoff){
-    std::cout << "Buffer is above MAX_LOWERLIMIT, sending XOFF\n";
+  if( queue->count > MIN_UPPERLIMIT && !send_xoff){
+    std::cout << "Buffer > MIN_UPPERLIMIT.\n";
     sent_xonxoff = XOFF;
 
     n = sendto(sockfd, &sent_xonxoff, sizeof(sent_xonxoff), 0, (struct sockaddr *)&cli_addr, clilen);
 
     if (n > 0){
-        std::cout << "XOFF SIGNAL SENT\n";
+        std::cout << "Mengirim XOFF\n";
         send_xoff = true;
         send_xon = false;
     }
     else{
-        std::cout << "XOFF SIGNAL NOT SENT\n";
+        std::cout << "P\n";
     }
 
   }
@@ -172,19 +205,19 @@ Byte *q_get(QTYPE *queue, Byte* data)
 	(queue->count)--;
 
 	//If the number of characters in the receive buffer is below certain level, then send XON.
-  if ((queue->count < MIN_UPPERLIMIT) && (!send_xon)){
-      std::cout << "Buffer is below MINUPPER, sending XON\n";
+  if ((queue->count < MAX_LOWERLIMIT) && (!send_xon)){
+      std::cout << "Buffer < MAX_LOWERLIMIT.\n";
       sent_xonxoff = XON;
 
       int a = sendto(sockfd, &sent_xonxoff, sizeof(sent_xonxoff), 0, (struct sockaddr *)&cli_addr, clilen);
 
       if (a > 0){
-          std::cout << "XON SIGNAL SENT\n";
+          std::cout << "Mengirim XON.\n";
           send_xon = true; //xon flag true
           send_xoff = false; //xoff flag false
       }
       else{
-          std::cout << "XON SIGNAL NOT SENT\n";
+          std::cout << "Pengiriman XON gagal.\n";
       }
   }
   return current;
