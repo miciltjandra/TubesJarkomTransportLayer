@@ -74,7 +74,7 @@ int main(int argc, char *argv[]){
     std::cout << "Receive : " << (int) c << " " << c << std::endl;
 
     if( c == Endfile ){
-      std::terminate();
+      nom_nom_engine.join();
       exit(0);
     }
   }

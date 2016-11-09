@@ -90,13 +90,13 @@ int main(int argc, char* argv[]) {
 		printf("Mengirim byte ke-%d: ‘%c’\n", count, buf[0]);
 		count++;
 		n = sendto(socket_fd,buf,
-	    strlen(buf),0,(const struct sockaddr *)&server_address,length);
+	    1,0,(const struct sockaddr *)&server_address,length);
 	    usleep(200);
 	}
 	buf[0] = Endfile;
 	printf("Mengirim byte ke-%d: Endfile\n", count);
 	n = sendto(socket_fd,buf,
-	    strlen(buf),0,(const struct sockaddr *)&server_address,length);
+	    1,0,(const struct sockaddr *)&server_address,length);
 
 	//sleep(10000);
 	return 0;
