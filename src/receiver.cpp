@@ -51,8 +51,8 @@ in_addr get_ip(const std::string& interface_name){
           if( interface_name == std::string(ifa->ifa_name) )
             return sa->sin_addr;
 
-//          addr = inet_ntoa(sa->sin_addr);
-//          printf("Interface: %s\tAddress: %s\n", ifa->ifa_name, addr);
+          addr = inet_ntoa(sa->sin_addr);
+          printf("Interface: %s\tAddress: %s\n", ifa->ifa_name, addr);
       }
   }
 
@@ -65,7 +65,7 @@ int main(int argc, char *argv[]){
   Byte c;
 
   in_addr addr; // INADDR_ANY
-  addr = get_ip("enp1s0");
+  addr = get_ip("wlan0");
 
   /* Insert code here to bind socket to the port number given in argv[1]. */
   if (argc < 2) {
@@ -125,7 +125,15 @@ void nom_nom_q(QTYPE *queue){
     /* Call q_get */
     r = q_get(queue, &data);
     if(r)
-      std::cout << "Mengkonsumsi byte ke-" << byte_counter++ << ": '" << *r << "'\n";
+      if (*r == CR) {
+        std::cout << "Mengkonsumsi byte ke-" << byte_counter++ << ": Carriage Return\n";  
+      }
+      else if (*r == LF)
+        std::cout << "Mengkonsumsi byte ke-" << byte_counter++ << ": Line Feed\n";
+      else if (*r == Endfile)
+        std::cout << "Mengkonsumsi byte ke-" << byte_counter++ << ": Endfile\n";
+      else
+        std::cout << "Mengkonsumsi byte ke-" << byte_counter++ << ": '" << *r << "'\n";
 //    else
 //      std::cout << "NomNomEngine: Nothing to Nom Nom\n";
 
@@ -201,7 +209,7 @@ Byte *q_get(QTYPE *queue, Byte* data)
       //update queue after save data to current, count --
     	(queue->front) = (((queue->front) + 1) % RXQSIZE + 1) -1;
     	(queue->count)--;
-      if( *current <= 32 || *current == CR || *current == LF || *current == Endfile ){
+      if( *current <= 32 && *current != CR && *current != LF && *current == Endfile ){
         if( queue->count == 0 )
           return NULL;
         else

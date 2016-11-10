@@ -30,7 +30,6 @@ int main(int argc, char* argv[]) {
 
 	//get port number
 	port_number = atoi(argv[2]);
-	printf("%d\n", port_number);
 
 	//create socket
 	printf("Membuat socket untuk koneksi ke %s:%s\n", argv[1], argv[2]);
